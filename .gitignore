@@ -1,0 +1,22 @@
+# llama.cpp source clone — local reference only, not part of this project
+llama.cpp/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Claude
+.claude/
+
+# Prototype scripts (replaced by laima)
+servellama.sh
+ollama-models-gguf.sh
+prompt-wip.txt
+
+# macOS
+.DS_Store

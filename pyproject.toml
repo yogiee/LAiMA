@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laima"
+version = "0.1.0"
+requires-python = ">=3.10"  # tested on 3.14
+dependencies = [
+    "rich>=13.0",
+    "questionary>=2.0",
+    "psutil>=5.9",
+    "huggingface-hub>=0.20",
+]
+
+[project.scripts]
+laima = "laima.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["laima*"]

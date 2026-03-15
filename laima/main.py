@@ -345,6 +345,25 @@ def _flush_stdin() -> None:
         pass
 
 
+_CAP_STYLE: dict[str, str] = {
+    "tools":     "green",
+    "vision":    "cyan",
+    "thinking":  "magenta",
+    "embedding": "yellow",
+    "insert":    "dim",
+    # "completion" intentionally omitted — universal, not interesting
+}
+
+
+def _format_caps(caps: list[str]) -> str:
+    badges = []
+    for cap in caps:
+        style = _CAP_STYLE.get(cap)
+        if style:
+            badges.append(f"[{style}]{cap}[/{style}]")
+    return "  ".join(badges) if badges else "[dim]—[/dim]"
+
+
 def _do_list_models() -> None:
     from rich.table import Table
 
@@ -364,18 +383,18 @@ def _do_list_models() -> None:
         show_lines=False,
         pad_edge=True,
     )
-    table.add_column("Name",   style="bold",  no_wrap=True)
-    table.add_column("Size",   justify="right")
-    table.add_column("Origin", justify="center")
-    table.add_column("GGUF",   justify="center")
+    table.add_column("Name",         style="bold", no_wrap=True)
+    table.add_column("Size",         justify="right")
+    table.add_column("Origin",       justify="center")
+    table.add_column("Capabilities", no_wrap=True)
 
     for m in compatible:
         raw = models.get(m["name"], {})
         size = raw.get("size_gb")
         size_str = f"{size:.1f} GB" if size else "—"
         origin = raw.get("origin", "ollama")
-        gguf_mark = "[green]✔[/green]" if raw.get("gguf_compatible") else "[red]✖[/red]"
-        table.add_row(m["name"], size_str, origin, gguf_mark)
+        caps = raw.get("capabilities") or []
+        table.add_row(m["name"], size_str, origin, _format_caps(caps))
 
     console.print()
     console.print(table)

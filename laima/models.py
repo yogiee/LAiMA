@@ -113,6 +113,66 @@ def _find_gguf_blob(model_name: str) -> Optional[Path]:
 
 
 # ---------------------------------------------------------------------------
+# Capability detection
+# ---------------------------------------------------------------------------
+
+def _get_ollama_capabilities(model_name: str) -> list[str]:
+    """Parse the Capabilities section from `ollama show <model>`."""
+    try:
+        result = subprocess.run(
+            ["ollama", "show", model_name],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode != 0:
+            return []
+        caps: list[str] = []
+        in_caps = False
+        for line in result.stdout.splitlines():
+            stripped = line.strip().lower()
+            if stripped == "capabilities":
+                in_caps = True
+                continue
+            if in_caps:
+                # New section header ends the capabilities block
+                if line and not line.startswith(" ") and not line.startswith("\t"):
+                    break
+                if stripped:
+                    caps.append(stripped)
+        return caps
+    except Exception:
+        return []
+
+
+# Keywords that imply extended thinking / chain-of-thought reasoning
+_THINKING_KEYWORDS = ("thinking", "qwq", "-r1", "r1-", "deepseek-r", "reasoner", "-think")
+_VISION_KEYWORDS   = ("vision", "-vl", "vl-", "vlm", "llava", "moondream",
+                      "minicpm-v", "internvl", "qwen-vl", "cogvlm", "bakllava")
+_EMBED_KEYWORDS    = ("embed", "bge-", "e5-", "nomic-embed", "mxbai")
+
+
+def _infer_capabilities_from_name(name: str) -> list[str]:
+    """Heuristic capability detection for custom / HF models."""
+    n = name.lower()
+    caps = ["completion"]
+    if any(k in n for k in _VISION_KEYWORDS):
+        caps.append("vision")
+    if any(k in n for k in _THINKING_KEYWORDS):
+        caps.append("thinking")
+    if any(k in n for k in _EMBED_KEYWORDS):
+        caps.append("embedding")
+    return caps
+
+
+def _augment_with_thinking(name: str, caps: list[str]) -> list[str]:
+    """Add 'thinking' to an Ollama capability list if the model name implies it."""
+    if "thinking" not in caps:
+        n = name.lower()
+        if any(k in n for k in _THINKING_KEYWORDS):
+            caps = caps + ["thinking"]
+    return caps
+
+
+# ---------------------------------------------------------------------------
 # GGUF validation
 # ---------------------------------------------------------------------------
 
@@ -161,13 +221,21 @@ def scan_models(
         blob = _find_gguf_blob(name)
         compatible = bool(blob and _is_gguf(blob))
         size = _size_gb(blob) if blob else None
+        caps = _augment_with_thinking(name, _get_ollama_capabilities(name))
 
         updated[name] = {
             "gguf_path": str(blob) if blob else None,
             "gguf_compatible": compatible,
             "size_gb": round(size, 2) if size is not None else None,
+            "capabilities": caps,
             "last_checked": datetime.now().isoformat(),
         }
+
+    # Backfill capabilities for existing Ollama models that predate this field
+    for name in unchanged_names:
+        if "capabilities" not in updated.get(name, {}):
+            caps = _augment_with_thinking(name, _get_ollama_capabilities(name))
+            updated[name]["capabilities"] = caps
 
     return updated, len(new_names), len(removed_names), len(unchanged_names)
 
@@ -182,6 +250,7 @@ def add_custom_model(models: dict[str, Any], name: str, gguf_path: str) -> dict[
         "gguf_path": gguf_path,
         "gguf_compatible": True,
         "size_gb": round(size, 2) if size is not None else None,
+        "capabilities": _infer_capabilities_from_name(name),
         "last_checked": datetime.now().isoformat(),
         "origin": "custom",
     }

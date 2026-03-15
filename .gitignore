@@ -12,6 +12,7 @@ build/
 
 # Claude
 .claude/
+CLAUDE.md
 
 # Prototype scripts (replaced by laima)
 servellama.sh

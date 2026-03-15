@@ -139,6 +139,12 @@ _HINTS: list[tuple[str, str]] = [
         "'Pull Model from Ollama', or rebuild llama.cpp from the latest source.",
     ),
     (
+        "key not found in model",
+        "llama-server does not recognise a required model key — your llama.cpp build "
+        "is likely too old for this model architecture. Rebuild llama.cpp from the "
+        "latest source (git pull && cmake --build).",
+    ),
+    (
         "failed to load model",
         "llama-server could not load the GGUF file. Check the model path is valid "
         "and the file is not corrupted.",
